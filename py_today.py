@@ -1,6 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#=========================================================================
+#
+#         FILE: py_today.py
+#
+#        USAGE: ./py_today.py
+#
+#  DESCRIPTION: Create 'Today' class for date/time manipulation
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#       AUTHOR: SHIE, Li-Yi (lyshie), lyshie@mx.nthu.edu.tw
+# ORGANIZATION:
+#      VERSION: 1.0
+#      CREATED: 2014-10-14 15:11:30
+#     REVISION: ---
+#=========================================================================
+
 import calendar
 import datetime
 import time
@@ -134,7 +153,7 @@ class Today(object):
 
 
 def main():
-    """ main"""
+    """main"""
     print("              TODAY: {}".format(time.strftime("%F %T (%z) (%Z)")))
 
     #today = Today(epoch=time.time() - 86400 * 23)

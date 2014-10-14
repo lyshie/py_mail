@@ -1,6 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#=========================================================================
+#
+#         FILE: py_mail.py
+#
+#        USAGE: ./py_mail.py
+#
+#  DESCRIPTION: Fetch mails from IMAP server into database (SQLite/MySQL)
+#
+#      OPTIONS: ---
+# REQUIREMENTS: ---
+#         BUGS: ---
+#        NOTES: ---
+#       AUTHOR: SHIE, Li-Yi (lyshie), lyshie@mx.nthu.edu.tw
+# ORGANIZATION:
+#      VERSION: 1.0
+#      CREATED: 2014-10-14 15:08:39
+#     REVISION: ---
+#=========================================================================
+
 import mailbox
 import email.errors
 import email.header
