@@ -30,6 +30,7 @@ import MySQLdb
 import warnings
 import imaplib
 import getpass
+import py_today
 
 
 def create_table(db='sqlite3'):
@@ -177,7 +178,14 @@ def load_imap():
 
     imap.select(readonly=True)
 
-    typ, nums = imap.uid("SEARCH", "ALL")
+    #typ, nums = imap.uid("SEARCH", "ALL")
+
+    today = py_today.Today()
+    yesterday = today - "days=1"
+    in_two_days = today - "days=2"
+
+    typ, nums = imap.uid("SEARCH", "SINCE", in_two_days.format_time(
+        format="%d-%b-%Y"))
 
     con = re.compile(r"^(?:Date|Subject): ")
     lf = re.compile(r'[\n\r]+')

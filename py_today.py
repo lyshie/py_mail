@@ -24,7 +24,6 @@ import calendar
 import datetime
 import time
 import pytz
-import os
 
 """
     October 2014    
@@ -58,7 +57,8 @@ class Today(object):
         if (tz_name):
             self.tz = pytz.timezone(tz_name)
 
-    def strip_time(self, dt=None):
+    @staticmethod
+    def strip_time(dt=None):
         """Strip the part of time"""
         if (dt):
             return dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -143,6 +143,46 @@ class Today(object):
         """Set/Reset internal unix timestamp"""
         self.epoch = epoch or 0
 
+    def get_datetime(self):
+        """Get datetime.datetime object"""
+        dt = datetime.datetime.fromtimestamp(self.epoch, tz=self.tz)
+
+        return dt
+
+    def set_datetime(self, dt=None):
+        """Set datetime.datetime object"""
+        if (dt):
+            #self.epoch = calendar.timegm(dt.utctimetuple())
+            self.epoch = time.mktime(dt.timetuple())
+
+    def __sub__(self, other):
+        if (isinstance(other, datetime.timedelta)):
+            self.set_datetime(self.get_datetime() - other)
+            return self
+        elif (isinstance(other, basestring)):
+            self.set_datetime(
+                self.get_datetime() - self.str_to_timedelta(other))
+            return self
+        else:
+            raise TypeError
+
+    def __isub__(self, other):
+        return self.__sub__(other)
+
+    def __add__(self, other):
+        if (isinstance(other, datetime.timedelta)):
+            self.set_datetime(self.get_datetime() + other)
+            return self
+        elif (isinstance(other, basestring)):
+            self.set_datetime(
+                self.get_datetime() + self.str_to_timedelta(other))
+            return self
+        else:
+            raise TypeError
+
+    def __iadd__(self, other):
+        return self.__sub__(other)
+
     def format_time(self, epoch=None, dt=None, format="%F %T (%z) (%Z)"):
         """Get well formatted datetime string"""
         if (dt):
@@ -150,6 +190,20 @@ class Today(object):
         elif (epoch):
             dt = datetime.datetime.fromtimestamp(epoch, tz=self.tz)
             return dt.strftime(format)
+        else:
+            dt = datetime.datetime.fromtimestamp(self.epoch, tz=self.tz)
+            return dt.strftime(format)
+
+    @staticmethod
+    def str_to_timedelta(delta=""):
+        """Convert string into datetime.timedelta object"""
+        d = {}
+        for token in delta.split(","):
+            k, v = token.strip().split("=", 2)
+            d[k.strip()] = int(v.strip())
+
+        # unpack argument lists (dict)
+        return datetime.timedelta(**d)
 
 
 def main():
@@ -173,6 +227,10 @@ def main():
         today.format_time(dt=today.begin_of_today())))
     print("       END OF TODAY: {}".format(
         today.format_time(dt=today.end_of_today())))
+
+    print(today.get_epoch())
+    today -= "minutes=1"
+    print(today.get_epoch())
 
 if __name__ == '__main__':
     main()
