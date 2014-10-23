@@ -31,6 +31,7 @@ import warnings
 import imaplib
 import getpass
 import py_today
+import rfc822
 
 
 def create_table(db='sqlite3'):
@@ -50,6 +51,7 @@ def create_table(db='sqlite3'):
             (
                 subject TEXT,
                 date    TEXT,
+                s_from  TEXT,
                 UNIQUE  (subject, date)
             )
         ''')
@@ -60,6 +62,7 @@ def create_table(db='sqlite3'):
             (
                 subject VARCHAR(255),
                 date    VARCHAR(255),
+                s_from  VARCHAR(255),
                 UNIQUE  (subject, date)
             )
         ''')
@@ -94,16 +97,18 @@ def insert_into_table(conn, items, db='sqlite3'):
 
         if (db == 'sqlite3'):
             cur.execute('''
-                REPLACE INTO message (subject, date) VALUES (?, ?)
-                ''' ,  (items[0], items[1]))
+                REPLACE INTO message (subject, date, s_from) VALUES (?, ?, ?)
+                ''' ,  (items[0], items[1], items[2]))
         elif (db == 'mysql'):
             cur.execute('''
-                REPLACE INTO message (subject, date) VALUES (%s, %s)
-                ''' ,  [items[0], items[1]])
+                REPLACE INTO message (subject, date, s_from) VALUES (%s, %s, %s)
+                ''' ,  [items[0], items[1], items[2]])
 
 
 def decode_header(raw, defaults=["utf-8", "big5"]):
     # pre-process
+    raw = raw.replace("?gb2312?", "?gbk?")
+
     lf = re.compile(r'[\n\r]+')
     raw = lf.sub("", raw)
 
@@ -167,7 +172,13 @@ def load_maildir():
         else:
             t = 0
 
-        insert_into_table(conn, [subject, str(t)], db='mysql')
+        s_from = msg.get("from")
+        s_from = decode_header(s_from)
+        r, e = rfc822.parseaddr(s_from)
+        if (e):
+            s_from = e
+
+        insert_into_table(conn, [subject, str(t), s_from], db='mysql')
 
     close_table(conn)
 
@@ -187,9 +198,6 @@ def load_imap():
     typ, nums = imap.uid("SEARCH", "SINCE", in_two_days.format_time(
         format="%d-%b-%Y"))
 
-    con = re.compile(r"^(?:Date|Subject): ")
-    lf = re.compile(r'[\n\r]+')
-
     msgs = {}
 
     count = 15000
@@ -202,15 +210,20 @@ def load_imap():
             break
 
         typ, data = imap.uid(
-            "FETCH", i, '(BODY[HEADER.FIELDS (Subject)])')
-        subject = con.sub("", data[0][1] or "")
+            "FETCH", i, '(BODY[HEADER.FIELDS (Subject Date From)])')
 
-        typ, data = imap.uid(
-            "FETCH", i, '(BODY[HEADER.FIELDS (Date)])')
-        date = lf.sub("",  con.sub("", data[0][1] or ""))
+        header = email.message_from_string(data[0][1] or "")
+
+        subject = header['Subject'] or ""
+        date = header['Date'] or ""
+        s_from = header['From'] or ""
+        r, e = rfc822.parseaddr(s_from)
+        if (e):
+            s_from = e
 
         msgs[i] = {'subject': decode_header(subject),
-                   'date': date}
+                   'date': date,
+                   'from': decode_header(s_from)}
 
     imap.close()
     imap.logout()
@@ -230,7 +243,8 @@ def load_imap():
         else:
             t = 0
 
-        insert_into_table(conn, [msgs[m]['subject'], str(t)], db='mysql')
+        insert_into_table(
+            conn, [msgs[m]['subject'], str(t), msgs[m]['from']], db='mysql')
 
     close_table(conn)
 
