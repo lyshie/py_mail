@@ -181,7 +181,7 @@ class Today(object):
             raise TypeError
 
     def __iadd__(self, other):
-        return self.__sub__(other)
+        return self.__add__(other)
 
     def format_time(self, epoch=None, dt=None, format="%F %T (%z) (%Z)"):
         """Get well formatted datetime string"""
