@@ -26,12 +26,30 @@ from flask import jsonify
 from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
 import getpass
+import iniparse
+
+
+def get_config(filename='web.conf'):
+    config = iniparse.ConfigParser()
+    config.read(filename)
+
+    params = {'username': 'root',
+              'password': None,
+              'table': 'maildir',
+              }
+
+    if (config.has_section('mysql')):
+        for k in params:
+            if (config.has_option('mysql', k)):
+                params[k] = config.get('mysql', k)
+
+    return params
 
 app = Flask(__name__)
-
-password = getpass.getpass("MySQL Password: ")
+params = get_config()
+password = params['password'] or getpass.getpass("MySQL Password: ")
 app.config[
-    "SQLALCHEMY_DATABASE_URI"] = "mysql://root:{}@localhost/maildir".format(password)
+    "SQLALCHEMY_DATABASE_URI"] = "mysql://{username}:{password}@localhost/{table}".format(**params)
 db = SQLAlchemy(app)
 
 
