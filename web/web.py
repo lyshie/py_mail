@@ -26,11 +26,11 @@ from flask import jsonify
 from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
 import getpass
-import iniparse
+import ConfigParser
 
 
 def get_config(filename='web.conf'):
-    config = iniparse.ConfigParser()
+    config = ConfigParser.ConfigParser()
     config.read(filename)
 
     params = {'username': 'root',
