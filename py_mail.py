@@ -32,16 +32,56 @@ import imaplib
 import getpass
 import py_today
 import rfc822
+import os
+import ConfigParser
+import sched
+import time
+import logging
 
 
-def create_table(db='sqlite3'):
+def get_default_config(filename=""):
+    path = os.path.dirname(os.path.realpath(__file__))
+
+    # default config filename 'web.py' => 'web.conf'
+    if (not filename):
+        basename = os.path.basename(os.path.realpath(__file__))
+        basename, a = basename.split(".", 1)
+        filename = basename + ".conf"
+
+    return os.path.join(path, filename)
+
+
+def get_config(filename=get_default_config()):
+    config = ConfigParser.ConfigParser()
+    config.read(filename)
+
+    params = {'mysql_username': 'root',
+              'mysql_password': None,
+              'mysql_table': 'maildir',
+              'mysql_host': 'localhost',
+              'imap_username': 'lyshie',
+              'imap_password': None,
+              'imap_host': 'imap.mx.nthu.edu.tw',
+              'sqlite3_database': 'maildir.db',
+              }
+
+    for sec in ['imap', 'mysql']:
+        if (config.has_section(sec)):
+            for k in config.options(sec):
+                if (config.has_option(sec, k)):
+                    params["{}_{}".format(sec, k)] = config.get(sec, k)
+
+    return params
+
+
+def create_table(db='sqlite3', params={}):
     conn = None
 
     if (db == 'sqlite3'):
-        conn = sqlite3.connect("maildir.db")
+        conn = sqlite3.connect(params['sqlite3_database'])
     elif (db == 'mysql'):
         conn = MySQLdb.connect(
-            'localhost', 'root', getpass.getpass('MySQL Password: '), 'maildir', charset='utf8')
+            params['mysql_host'], params['mysql_username'], params['mysql_password'] or getpass.getpass('MySQL Password: '), params['mysql_table'],  charset='utf8')
 
     cur = conn.cursor()
 
@@ -72,13 +112,13 @@ def create_table(db='sqlite3'):
     conn.close()
 
 
-def open_table(db='sqlite3'):
+def open_table(db='sqlite3', params={}):
     conn = None
     if (db == 'sqlite3'):
-        conn = sqlite3.connect("maildir.db")
+        conn = sqlite3.connect(params['sqlite3_database'])
     elif (db == 'mysql'):
         conn = MySQLdb.connect(
-            'localhost', 'root', getpass.getpass('MySQL Password: '), 'maildir', charset='utf8')
+            params['mysql_host'], params['mysql_username'], params['mysql_password'] or getpass.getpass('MySQL Password: '), params['mysql_table'], charset='utf8')
 
     conn.text_factory = str
 
@@ -149,8 +189,6 @@ def load_maildir():
     keys = md.keys()
     keys.sort(cmp=lambda x, y: cmp(x, y))
 
-    con = re.compile(r'\?==\?')
-
     create_table(db='mysql')
     conn = open_table(db='mysql')
 
@@ -183,9 +221,10 @@ def load_maildir():
     close_table(conn)
 
 
-def load_imap():
-    imap = imaplib.IMAP4(host="imap.mx.nthu.edu.tw")
-    imap.login("lyshie", getpass.getpass('IMAP Password: '))
+def load_imap(params={}):
+    imap = imaplib.IMAP4(host=params['imap_host'])
+    imap.login(params['imap_username'], params[
+               'imap_password'] or getpass.getpass('IMAP Password: '))
 
     imap.select(readonly=True)
 
@@ -203,7 +242,7 @@ def load_imap():
     count = 15000
     for i in reversed(nums[0].split()):
         if (count % 500 == 0):
-            print("Count = {}".format(count))
+            logging.info("Current = {}".format(count))
 
         count = count - 1
         if (count < 0):
@@ -228,8 +267,8 @@ def load_imap():
     imap.close()
     imap.logout()
 
-    create_table(db='mysql')
-    conn = open_table(db='mysql')
+    create_table(db='mysql', params=params)
+    conn = open_table(db='mysql', params=params)
 
     count = 0
     for m in reversed(sorted(msgs.keys())):
@@ -248,12 +287,26 @@ def load_imap():
 
     close_table(conn)
 
-    print(count)
+    logging.info("Total = {}".format(count))
+
+
+def fetch_mail(params={}, sch=None):
+    logging.info("Fetch mail and store ({})...".format(time.strftime("%F %T")))
+
+    # every 180 seconds
+    sch.enter(180, 1, fetch_mail, (params, sch))
+
+    load_imap(params=params)
+    # load_maildir()
 
 
 def main():
-    load_imap()
-    # load_maildir()
+    params = get_config()
+
+    logging.basicConfig(level=logging.INFO)
+    sch = sched.scheduler(time.time, time.sleep)
+    sch.enter(0, 1, fetch_mail, (params, sch))
+    sch.run()
 
 if __name__ == '__main__':
     main()

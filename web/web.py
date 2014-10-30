@@ -20,6 +20,7 @@
 #     REVISION: ---
 #=========================================================================
 
+import os
 from flask import Flask
 from flask import request
 from flask import jsonify
@@ -29,27 +30,41 @@ import getpass
 import ConfigParser
 
 
-def get_config(filename='web.conf'):
+def get_default_config(filename=""):
+    path = os.path.dirname(os.path.realpath(__file__))
+
+    # default config filename 'web.py' => 'web.conf'
+    if (not filename):
+        basename = os.path.basename(os.path.realpath(__file__))
+        basename, a = basename.split(".", 1)
+        filename = basename + ".conf"
+
+    return os.path.join(path, filename)
+
+
+def get_config(filename=get_default_config()):
     config = ConfigParser.ConfigParser()
     config.read(filename)
 
-    params = {'username': 'root',
-              'password': None,
-              'table': 'maildir',
+    params = {'mysql_username': 'root',
+              'mysql_password': None,
+              'mysql_table': 'maildir',
+              'mysql_host': 'localhost',
               }
 
-    if (config.has_section('mysql')):
-        for k in params:
-            if (config.has_option('mysql', k)):
-                params[k] = config.get('mysql', k)
+    for sec in ['mysql']:
+        if (config.has_section(sec)):
+            for k in config.options(sec):
+                if (config.has_option(sec, k)):
+                    params["{}_{}".format(sec, k)] = config.get(sec, k)
 
     return params
 
 app = Flask(__name__)
 params = get_config()
-password = params['password'] or getpass.getpass("MySQL Password: ")
+password = params['mysql_password'] or getpass.getpass("MySQL Password: ")
 app.config[
-    "SQLALCHEMY_DATABASE_URI"] = "mysql://{username}:{password}@localhost/{table}".format(**params)
+    "SQLALCHEMY_DATABASE_URI"] = "mysql://{mysql_username}:{mysql_password}@{mysql_host}/{mysql_table}".format(**params)
 db = SQLAlchemy(app)
 
 
