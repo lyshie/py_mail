@@ -52,7 +52,7 @@ class Argument(object):
     @classmethod
     def get_since(self, since="days=2"):
         re_value = re.compile(r"(\d+)")
-        re_unit = re.compile(r"(hour|day|week|month|year)")
+        re_unit = re.compile(r"(second|minute|hour|day|week)")
 
         value = None
         unit = None
@@ -65,10 +65,15 @@ class Argument(object):
         if (m):
             unit = m.group(1)
 
+        since = "days=2"
         if (value and unit):
-            return "{}s={}".format(unit, value)
+            since = "{}s={}".format(unit, value)
         else:
-            return "days=2"
+            debug("WARN: failed to parse time string.")
+
+        debug("Since '{}'".format(since))
+
+        return since
 
 
 def debug(msg, *args, **kwargs):
