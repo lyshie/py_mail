@@ -37,6 +37,43 @@ import ConfigParser
 import sched
 import time
 import logging
+import argparse
+
+
+class Argument(object):
+    args = None
+
+    def __init__(self):
+        if (not Argument.args):
+            parser = argparse.ArgumentParser()
+            parser.add_argument("-s", "--since", default="days=2")
+            Argument.args = parser.parse_args()
+
+    @classmethod
+    def get_since(self, since="days=2"):
+        re_value = re.compile(r"(\d+)")
+        re_unit = re.compile(r"(hour|day|week|month|year)")
+
+        value = None
+        unit = None
+
+        m = re_value.search(since)
+        if (m):
+            value = m.group(1)
+
+        m = re_unit.search(since)
+        if (m):
+            unit = m.group(1)
+
+        if (value and unit):
+            return "{}s={}".format(unit, value)
+        else:
+            return "days=2"
+
+
+def debug(msg, *args, **kwargs):
+    logger = logging.getLogger(__name__)
+    logger.debug(msg, *args, **kwargs)
 
 
 def get_default_config(filename=""):
@@ -231,10 +268,10 @@ def load_imap(params={}):
     #typ, nums = imap.uid("SEARCH", "ALL")
 
     today = py_today.Today()
-    yesterday = today - "days=1"
-    in_two_days = today - "days=2"
+    #yesterday = today - "days=1"
+    since = today - Argument.get_since(Argument.args.since)
 
-    typ, nums = imap.uid("SEARCH", "SINCE", in_two_days.format_time(
+    typ, nums = imap.uid("SEARCH", "SINCE", since.format_time(
         format="%d-%b-%Y"))
 
     msgs = {}
@@ -242,7 +279,7 @@ def load_imap(params={}):
     count = 15000
     for i in reversed(nums[0].split()):
         if (count % 500 == 0):
-            logging.info("Current = {}".format(count))
+            debug("Current = {}".format(count))
 
         count = count - 1
         if (count < 0):
@@ -287,11 +324,11 @@ def load_imap(params={}):
 
     close_table(conn)
 
-    logging.info("Total = {}".format(count))
+    debug("Total = {}".format(count))
 
 
 def fetch_mail(params={}, sch=None):
-    logging.info("Fetch mail and store ({})...".format(time.strftime("%F %T")))
+    debug("Fetch mail and store ({})...".format(time.strftime("%F %T")))
 
     # every 180 seconds
     sch.enter(180, 1, fetch_mail, (params, sch))
@@ -301,9 +338,10 @@ def fetch_mail(params={}, sch=None):
 
 
 def main():
+    args = Argument()
     params = get_config()
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     sch = sched.scheduler(time.time, time.sleep)
     sch.enter(0, 1, fetch_mail, (params, sch))
     sch.run()
