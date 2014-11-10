@@ -1,2 +1,5 @@
 *.pyc
 *.db
+*.conf
+I18N/zh_TW/LC_MESSAGES/*.po~
+I18N/zh_TW/LC_MESSAGES/*.mo

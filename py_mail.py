@@ -38,6 +38,23 @@ import sched
 import time
 import logging
 import argparse
+import gettext
+
+_ = gettext.gettext
+
+
+class I18N(object):
+
+    @classmethod
+    def bind(self):
+        basename = os.path.basename(os.path.realpath(__file__))
+        path = os.path.dirname(os.path.realpath(__file__))
+
+        domain, ext = os.path.splitext(basename)
+        localedir = os.path.join(path, "I18N")
+
+        gettext.bindtextdomain(domain, localedir)
+        gettext.textdomain(domain)
 
 
 class Argument(object):
@@ -46,7 +63,8 @@ class Argument(object):
     def __init__(self):
         if (not Argument.args):
             parser = argparse.ArgumentParser()
-            parser.add_argument("-s", "--since", default="days=2")
+            parser.add_argument(
+                "-s", "--since", default="days=2", help=_("Time format: 1second, 2days, week=2"))
             Argument.args = parser.parse_args()
 
     @classmethod
@@ -69,9 +87,9 @@ class Argument(object):
         if (value and unit):
             since = "{}s={}".format(unit, value)
         else:
-            debug("WARN: failed to parse time string.")
+            debug(_("WARN: failed to parse time string."))
 
-        debug("Since '{}'".format(since))
+        debug(_("Since '{}'").format(since))
 
         return since
 
@@ -87,7 +105,7 @@ def get_default_config(filename=""):
     # default config filename 'web.py' => 'web.conf'
     if (not filename):
         basename = os.path.basename(os.path.realpath(__file__))
-        basename, a = basename.split(".", 1)
+        basename, ext = os.path.splitext(basename)
         filename = basename + ".conf"
 
     return os.path.join(path, filename)
@@ -284,7 +302,7 @@ def load_imap(params={}):
     count = 15000
     for i in reversed(nums[0].split()):
         if (count % 500 == 0):
-            debug("Current = {}".format(count))
+            debug(_("Current = {}").format(count))
 
         count = count - 1
         if (count < 0):
@@ -329,11 +347,11 @@ def load_imap(params={}):
 
     close_table(conn)
 
-    debug("Total = {}".format(count))
+    debug(_("Total = {}").format(count))
 
 
 def fetch_mail(params={}, sch=None):
-    debug("Fetch mail and store ({})...".format(time.strftime("%F %T")))
+    debug(_("Fetch mail and store ({})...").format(time.strftime("%F %T")))
 
     # every 180 seconds
     sch.enter(180, 1, fetch_mail, (params, sch))
@@ -343,7 +361,9 @@ def fetch_mail(params={}, sch=None):
 
 
 def main():
-    args = Argument()
+    I18N().bind()
+    Argument()
+
     params = get_config()
 
     logging.basicConfig(level=logging.DEBUG)
