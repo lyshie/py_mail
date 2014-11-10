@@ -134,7 +134,7 @@ def get_config(filename=get_default_config()):
     return params
 
 
-def create_table(db='sqlite3', params={}):
+def create_table(db='sqlite3', params=None):
     conn = None
 
     if (db == 'sqlite3'):
@@ -172,7 +172,7 @@ def create_table(db='sqlite3', params={}):
     conn.close()
 
 
-def open_table(db='sqlite3', params={}):
+def open_table(db='sqlite3', params=None):
     conn = None
     if (db == 'sqlite3'):
         conn = sqlite3.connect(params['sqlite3_database'])
@@ -281,7 +281,7 @@ def load_maildir():
     close_table(conn)
 
 
-def load_imap(params={}):
+def load_imap(params=None):
     imap = imaplib.IMAP4(host=params['imap_host'])
     imap.login(params['imap_username'], params[
                'imap_password'] or getpass.getpass('IMAP Password: '))
@@ -350,7 +350,7 @@ def load_imap(params={}):
     debug(_("Total = {}").format(count))
 
 
-def fetch_mail(params={}, sch=None):
+def fetch_mail(params=None, sch=None):
     debug(_("Fetch mail and store ({})...").format(time.strftime("%F %T")))
 
     # every 180 seconds
