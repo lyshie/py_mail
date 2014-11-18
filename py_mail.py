@@ -125,11 +125,9 @@ def get_config(filename=get_default_config()):
               'sqlite3_database': 'maildir.db',
               }
 
-    for sec in ['imap', 'mysql']:
-        if (config.has_section(sec)):
-            for k in config.options(sec):
-                if (config.has_option(sec, k)):
-                    params["{}_{}".format(sec, k)] = config.get(sec, k)
+    for sec in config.sections():
+        for k in config.options(sec):
+            params["{}_{}".format(sec, k)] = config.get(sec, k)
 
     return params
 
@@ -206,6 +204,9 @@ def insert_into_table(conn, items, db='sqlite3'):
 
 
 def decode_header(raw, defaults=["utf-8", "big5"]):
+    if (not raw):
+        return u""
+
     # pre-process
     raw = raw.replace("?gb2312?", "?gbk?")
 
@@ -243,14 +244,14 @@ def decode_header(raw, defaults=["utf-8", "big5"]):
     return u"".join(pairs)
 
 
-def load_maildir():
-    md = mailbox.Maildir("~/Maildir")
+def load_mbox(params=None):
+    md = mailbox.mbox(os.path.expanduser(params['mbox_path']))
 
     keys = md.keys()
     keys.sort(cmp=lambda x, y: cmp(x, y))
 
-    create_table(db='mysql')
-    conn = open_table(db='mysql')
+    create_table(db='mysql', params=params)
+    conn = open_table(db='mysql', params=params)
 
     for k in keys:
         try:
@@ -260,7 +261,6 @@ def load_maildir():
 
         raw = msg.get("subject")
         subject = decode_header(raw)
-        print(subject)
 
         date = msg.get("date")
         dt = email.utils.parsedate_tz(date)
@@ -276,6 +276,47 @@ def load_maildir():
         if (e):
             s_from = e
 
+        # subject is Unicode
+        debug(u"{} ({}) <{}>".format(subject, t, s_from))
+        insert_into_table(conn, [subject, str(t), s_from], db='mysql')
+
+    close_table(conn)
+
+
+def load_maildir(params=None):
+    md = mailbox.Maildir(os.path.expanduser(params["maildir_dirname"]))
+
+    keys = md.keys()
+    keys.sort(cmp=lambda x, y: cmp(x, y))
+
+    create_table(db='mysql', params=params)
+    conn = open_table(db='mysql', params=params)
+
+    for k in keys:
+        try:
+            msg = md.get(k)
+        except email.errors.MessageParseError:
+            continue
+
+        raw = msg.get("subject")
+        subject = decode_header(raw)
+
+        date = msg.get("date")
+        dt = email.utils.parsedate_tz(date)
+        t = 0
+        if (dt):
+            t = email.utils.mktime_tz(dt)
+        else:
+            t = 0
+
+        s_from = msg.get("from")
+        s_from = decode_header(s_from)
+        r, e = rfc822.parseaddr(s_from)
+        if (e):
+            s_from = e
+
+        # subject is Unicode
+        debug(u"{} ({}) <{}>".format(subject, t, s_from))
         insert_into_table(conn, [subject, str(t), s_from], db='mysql')
 
     close_table(conn)
@@ -357,7 +398,8 @@ def fetch_mail(params=None, sch=None):
     sch.enter(180, 1, fetch_mail, (params, sch))
 
     load_imap(params=params)
-    # load_maildir()
+    # load_maildir(params=params)
+    # load_mbox(params=params)
 
 
 def main():
